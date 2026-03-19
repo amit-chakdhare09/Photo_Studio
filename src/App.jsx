@@ -272,10 +272,12 @@ const FILTERS = [
   { id: 'grayscale', name: 'Grayscale', css: 'grayscale(100%)', swatch: 'linear-gradient(135deg,#222,#888,#ddd)' },
   { id: 'sepia', name: 'Sepia', css: 'sepia(65%)', swatch: 'linear-gradient(135deg,#805e35,#c7a26d)' },
   { id: 'vintage', name: 'Vintage', css: 'sepia(45%) contrast(1.06) saturate(0.88)', swatch: 'linear-gradient(135deg,#7f6a54,#b99f81)' },
+  { id: 'dreamy-film', name: 'Dreamy Film', css: 'saturate(0.8) contrast(0.92) brightness(1.1) blur(0.3px)', swatch: 'linear-gradient(135deg,#b7c4a7,#e7e0c8)' },
   { id: 'retro-warm', name: 'Retro Warm', css: 'sepia(24%) saturate(1.35) hue-rotate(-6deg)', swatch: 'linear-gradient(135deg,#bb713d,#ffb369)' },
   { id: 'film-fade', name: 'Film Fade', css: 'contrast(0.9) saturate(0.78) brightness(1.08)', swatch: 'linear-gradient(135deg,#9a8b86,#d8c8bf)' },
   { id: 'dusty-look', name: 'Dusty Look', css: 'saturate(0.82) brightness(1.06) contrast(0.93)', swatch: 'linear-gradient(135deg,#9f9287,#cbbfb3)' },
   { id: 'old-camera', name: 'Old Camera', css: 'sepia(55%) contrast(1.16) brightness(0.92)', swatch: 'linear-gradient(135deg,#5a442b,#9d7a4f)' },
+  { id: 'vhs-cam', name: 'VHS Cam', css: 'contrast(0.94) saturate(0.82) brightness(0.98)', effect: 'vhs-hud', swatch: 'linear-gradient(135deg,#101010,#3a3a3a)' },
   { id: 'soft-pink', name: 'Soft Pink', css: 'hue-rotate(-16deg) saturate(1.12) brightness(1.08)', swatch: 'linear-gradient(135deg,#f2b3cb,#f4d4df)' },
   { id: 'cool-blue', name: 'Cool Blue', css: 'hue-rotate(18deg) saturate(1.08) brightness(1.04)', swatch: 'linear-gradient(135deg,#79a4cf,#c2daf0)' },
   { id: 'pastel-dream', name: 'Pastel Dream', css: 'saturate(0.72) brightness(1.16) contrast(0.9)', swatch: 'linear-gradient(135deg,#d8d2ff,#f6d7ef)' },
@@ -441,6 +443,19 @@ function transformCanvas(source, xScale, yScale) {
   ctx.drawImage(source, 0, 0)
   ctx.restore()
   return out
+}
+
+function formatClockParts(date) {
+  const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May.', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.']
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return {
+    timer: `${hh}:${mm}:${ss}`,
+    amLine: `${date.getHours() >= 12 ? 'PM' : 'AM'} ${hh}:${mm}`,
+    dateLine: `${months[date.getMonth()]} ${day} ${date.getFullYear()}`,
+  }
 }
 
 function App() {
@@ -688,6 +703,30 @@ function App() {
       if (safeDate) {
         ctx.font = '300 20px Outfit, sans-serif'
         ctx.fillText(safeDate, layout.canvas.w / 2, layout.labelY + (safeCaption ? 82 : 52))
+      }
+      ctx.restore()
+    }
+
+    if (activeFilter.effect === 'vhs-hud') {
+      const stamp = formatClockParts(new Date())
+      ctx.save()
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.9)' : 'rgba(0,0,0,.78)'
+      ctx.font = '700 28px monospace'
+      ctx.textAlign = 'left'
+      ctx.fillText('PLAY >', 30, 56)
+      ctx.textAlign = 'right'
+      ctx.fillText(stamp.timer, layout.canvas.w - 30, 56)
+      ctx.font = '700 24px monospace'
+      ctx.fillText(stamp.amLine, layout.canvas.w - 30, layout.canvas.h - 72)
+      ctx.fillText(stamp.dateLine, layout.canvas.w - 30, layout.canvas.h - 34)
+      ctx.globalAlpha = 0.1
+      ctx.lineWidth = 1
+      for (let y = 0; y < layout.canvas.h; y += 4) {
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(layout.canvas.w, y)
+        ctx.strokeStyle = dark ? '#fff' : '#000'
+        ctx.stroke()
       }
       ctx.restore()
     }

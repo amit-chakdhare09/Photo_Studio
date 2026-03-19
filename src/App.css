@@ -525,6 +525,7 @@ input {
   border-radius: 8px;
 }
 
+
 #flash {
   position: absolute;
   inset: 0;
@@ -1059,6 +1060,7 @@ input {
     width: min(88%, 360px);
     max-height: 68%;
   }
+
 
   #s-compose.active {
     grid-template-columns: 1fr;
