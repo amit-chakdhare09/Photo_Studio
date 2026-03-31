@@ -470,7 +470,7 @@ function App() {
   const [flash, setFlash] = useState(false)
   const [timerEnabled, setTimerEnabled] = useState(false)
   const [cameraFacing, setCameraFacing] = useState('user')
-  const [canSwitchCamera, setCanSwitchCamera] = useState(false)
+  const [activeCameraFacing, setActiveCameraFacing] = useState('user')
   const [toastState, setToastState] = useState({ message: '', show: false })
   const [countdown, setCountdown] = useState({ show: false, num: 3, key: 0 })
 
@@ -534,18 +534,23 @@ function App() {
           return
         }
         stopCameraStream()
-        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [])
-        const videoInputs = devices.filter((device) => device.kind === 'videoinput')
-        setCanSwitchCamera(videoInputs.length > 1)
         let stream
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: cameraFacing } },
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: { exact: cameraFacing },
+            },
             audio: false,
           })
         } catch {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: { ideal: cameraFacing },
+            },
             audio: false,
           })
         }
@@ -554,6 +559,13 @@ function App() {
           return
         }
         streamRef.current = stream
+        const track = stream.getVideoTracks()[0]
+        const detectedFacing = track?.getSettings?.().facingMode
+        const resolvedFacing = detectedFacing === 'environment' ? 'environment' : 'user'
+        setActiveCameraFacing(resolvedFacing)
+        if (cameraFacing === 'environment' && resolvedFacing !== 'environment') {
+          showToast(setToastState, 'Back camera is not available on this browser/device.')
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           await videoRef.current.play().catch(() => {})
@@ -624,7 +636,7 @@ function App() {
     snap.width = video.videoWidth || 1280
     snap.height = video.videoHeight || 720
     const ctx = snap.getContext('2d')
-    if (cameraFacing === 'user') {
+    if (activeCameraFacing === 'user') {
       ctx.translate(snap.width, 0)
       ctx.scale(-1, 1)
     }
@@ -785,10 +797,6 @@ function App() {
   }
   const clearAll = () => layout && setPhotos(Array(layout.count).fill(null))
   const toggleCameraFacing = () => {
-    if (!canSwitchCamera) {
-      showToast(setToastState, 'Only one camera detected on this device.')
-      return
-    }
     setCameraFacing((prev) => (prev === 'user' ? 'environment' : 'user'))
   }
   const reset = () => {
@@ -833,7 +841,7 @@ function App() {
       <div id="s-camera" className={`screen ${screen === 'camera' ? 'active' : ''}`}>
         <nav className="top-nav"><button className="nav-back" type="button" onClick={() => go('layout')}>{'<-'} Layout</button><span className="nav-title">{layout?.name || 'Camera'}</span></nav>
         <div className="cam-main">
-          <video ref={videoRef} id="cam-video" autoPlay muted playsInline style={{ transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none' }} />
+          <video ref={videoRef} id="cam-video" autoPlay muted playsInline style={{ transform: activeCameraFacing === 'user' ? 'scaleX(-1)' : 'none' }} />
           <div className="cam-hud"><div className="hud-dot" /><span>Shot {Math.min(filledCount + 1, layout?.count || 0)} of {layout?.count || 0}</span></div>
           <div className="cam-guide"><div className="cam-guide-box" style={{ aspectRatio: guideRatio }} /></div>
           <div id="cd-wrap" className={countdown.show ? 'show' : ''}><div id="cd-num" key={countdown.key}>{countdown.num}</div><div id="cd-label">Get ready!</div></div>
