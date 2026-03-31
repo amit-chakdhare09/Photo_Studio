@@ -469,6 +469,8 @@ function App() {
   const [dateText, setDateText] = useState('')
   const [flash, setFlash] = useState(false)
   const [timerEnabled, setTimerEnabled] = useState(false)
+  const [cameraFacing, setCameraFacing] = useState('user')
+  const [canSwitchCamera, setCanSwitchCamera] = useState(false)
   const [toastState, setToastState] = useState({ message: '', show: false })
   const [countdown, setCountdown] = useState({ show: false, num: 3, key: 0 })
 
@@ -500,6 +502,16 @@ function App() {
     setScreen(next)
   }
 
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }
+
   const startSession = () => {
     if (!layout) {
       showToast(setToastState, 'Please pick a layout first!')
@@ -511,22 +523,32 @@ function App() {
 
   useEffect(() => {
     if (screen !== 'camera') {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-        streamRef.current = null
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null
-      }
+      stopCameraStream()
       return
     }
     let cancelled = false
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-          audio: false,
-        })
+        if (!navigator.mediaDevices?.getUserMedia) {
+          showToast(setToastState, 'Camera is not supported on this browser.', 5000)
+          return
+        }
+        stopCameraStream()
+        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [])
+        const videoInputs = devices.filter((device) => device.kind === 'videoinput')
+        setCanSwitchCamera(videoInputs.length > 1)
+        let stream
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: cameraFacing } },
+            audio: false,
+          })
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          })
+        }
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop())
           return
@@ -543,8 +565,9 @@ function App() {
     startCamera()
     return () => {
       cancelled = true
+      stopCameraStream()
     }
-  }, [screen])
+  }, [screen, cameraFacing])
 
   useEffect(() => {
     if (screen === 'compose' && !dateText) {
@@ -601,8 +624,10 @@ function App() {
     snap.width = video.videoWidth || 1280
     snap.height = video.videoHeight || 720
     const ctx = snap.getContext('2d')
-    ctx.translate(snap.width, 0)
-    ctx.scale(-1, 1)
+    if (cameraFacing === 'user') {
+      ctx.translate(snap.width, 0)
+      ctx.scale(-1, 1)
+    }
     ctx.drawImage(video, 0, 0)
     const shot = snap.toDataURL('image/jpeg', 0.93)
     setPhotos((prev) => {
@@ -759,6 +784,13 @@ function App() {
     retakeSlot(photos.length - 1 - last)
   }
   const clearAll = () => layout && setPhotos(Array(layout.count).fill(null))
+  const toggleCameraFacing = () => {
+    if (!canSwitchCamera) {
+      showToast(setToastState, 'Only one camera detected on this device.')
+      return
+    }
+    setCameraFacing((prev) => (prev === 'user' ? 'environment' : 'user'))
+  }
   const reset = () => {
     setPhotos([])
     setLayoutId(null)
@@ -787,21 +819,21 @@ function App() {
           <div className="page-head"><h2>Pick Your Frame</h2><p>Select a layout template to begin your session</p></div>
           <div className="layout-grid">
             {LAYOUTS.map((item) => (
-              <button key={item.id} type="button" className={`lcard ${layoutId === item.id ? 'sel' : ''}`} onClick={() => setLayoutId(item.id)}>
+              <button key={item.id} type="button" className={`lcard ${layoutId === item.id ? 'sel' : ''}`} aria-label={`Select ${item.name} layout`} onClick={() => setLayoutId(item.id)}>
                 <div className="lcard-preview preview-frame">{item.preview.map((slot, idx) => <div key={`${item.id}-${idx}`} className="preview-slot" style={{ left: `${slot.x}%`, top: `${slot.y}%`, width: `${slot.w}%`, height: `${slot.h}%` }} />)}</div>
                 <div className="ln">{item.name}</div>
                 <div className="ld">{item.desc}</div>
               </button>
             ))}
           </div>
-          <div className="layout-confirm"><button id="btn-start" type="button" style={{ display: layout ? 'block' : 'none' }} onClick={startSession}>{layout ? `Start with "${layout.name}" ->` : 'Start Session ->'}</button></div>
+          <div className={`layout-confirm ${layout ? 'show' : ''}`}><button id="btn-start" type="button" disabled={!layout} onClick={startSession}>{layout ? `Start with "${layout.name}" ->` : 'Select a Layout'}</button></div>
         </div>
       </div>
 
       <div id="s-camera" className={`screen ${screen === 'camera' ? 'active' : ''}`}>
         <nav className="top-nav"><button className="nav-back" type="button" onClick={() => go('layout')}>{'<-'} Layout</button><span className="nav-title">{layout?.name || 'Camera'}</span></nav>
         <div className="cam-main">
-          <video ref={videoRef} id="cam-video" autoPlay muted playsInline />
+          <video ref={videoRef} id="cam-video" autoPlay muted playsInline style={{ transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none' }} />
           <div className="cam-hud"><div className="hud-dot" /><span>Shot {Math.min(filledCount + 1, layout?.count || 0)} of {layout?.count || 0}</span></div>
           <div className="cam-guide"><div className="cam-guide-box" style={{ aspectRatio: guideRatio }} /></div>
           <div id="cd-wrap" className={countdown.show ? 'show' : ''}><div id="cd-num" key={countdown.key}>{countdown.num}</div><div id="cd-label">Get ready!</div></div>
@@ -821,6 +853,7 @@ function App() {
             <button className="btn-cap" type="button" onClick={capture} disabled={busy}>Capture</button>
             <div className="mini-row"><button className="btn-mini" type="button" onClick={retakeLast}>Retake</button><button className="btn-mini" type="button" onClick={clearAll}>Clear</button></div>
             <button className="btn-mini timer-toggle" type="button" onClick={() => setTimerEnabled((prev) => !prev)}>Timer 3s: {timerEnabled ? 'On' : 'Off'}</button>
+            <button className="btn-mini timer-toggle" type="button" onClick={toggleCameraFacing}>Camera: {cameraFacing === 'user' ? 'Front' : 'Back'}</button>
             <button id="btn-compose" type="button" style={{ display: filledCount >= (layout?.count || 0) && layout ? 'block' : 'none' }} onClick={() => go('compose')}>Compose & Finish</button>
           </div>
         </div>
@@ -831,7 +864,7 @@ function App() {
         <div className="compose-area" ref={composeAreaRef}><div className="canvas-shadow"><canvas id="out-canvas" ref={canvasRef} /></div></div>
         <div className="compose-side">
           <div className="cs-h">Style</div>
-          <div className="cs-sec"><div className="cs-lbl">Filter</div><div className="filter-grid">{FILTERS.map((item) => <button key={item.id} type="button" className={`fchip ${filter === item.id ? 'on' : ''}`} onClick={() => setFilter(item.id)}><div className="fsw" style={{ background: item.swatch, filter: item.css !== 'none' ? item.css : 'none' }} /><div className="fn">{item.name}</div></button>)}</div></div>
+          <div className="cs-sec"><div className="cs-lbl">Filter</div><div className="filter-grid">{FILTERS.map((item) => <button key={item.id} type="button" className={`fchip ${filter === item.id ? 'on' : ''}`} aria-label={`Choose ${item.name} filter`} onClick={() => setFilter(item.id)}><div className="fsw" style={{ background: item.swatch, filter: item.css !== 'none' ? item.css : 'none' }} /><div className="fn">{item.name}</div></button>)}</div></div>
           <div className="cs-sec"><div className="cs-lbl">Background</div><div className="bg-row">{BACKGROUNDS.map((item) => <button key={item.v} type="button" className={`bd ${bg === item.v ? 'on' : ''}`} style={{ background: item.v }} title={item.l} onClick={() => setBg(item.v)} />)}</div></div>
           <div className="cs-sec"><div className="cs-lbl">Caption</div><input className="c-input" type="text" placeholder="Add a caption..." maxLength={48} value={caption} onChange={(e) => setCaption(e.target.value)} /></div>
           <div className="cs-sec"><div className="cs-lbl">Date</div><input className="c-input" type="text" placeholder="2026 - 03 - 19" maxLength={24} value={dateText} onChange={(e) => setDateText(e.target.value)} /></div>
