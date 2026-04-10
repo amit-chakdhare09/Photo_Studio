@@ -1,16 +1,77 @@
-# React + Vite
+# Photo Booth App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite photo booth web app with:
 
-Currently, two official plugins are available:
+- Multiple photo strip/grid layouts
+- Live camera capture flow
+- Front/back camera switching support
+- Countdown timer capture
+- Filter selection and background styling
+- Final compose and image export (PNG/JPEG)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+- React 19
+- Vite 5
+- Tailwind CSS (with custom app styling)
+- gh-pages for deployment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Project Setup
 
-## Expanding the ESLint configuration
+Install dependencies:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+```
+
+Start local development server:
+
+```bash
+npm run dev
+```
+
+Build production bundle:
+
+```bash
+npm run build
+```
+
+Preview production build locally:
+
+```bash
+npm run preview
+```
+
+## Deployment (GitHub Pages)
+
+This project is configured for GitHub Pages with:
+
+- `vite.config.js` base: `/Photo_Studio/`
+- `package.json` homepage: `https://amit-chakdhare09.github.io/Photo_Studio`
+- deploy script: `gh-pages -d dist`
+
+Deploy steps:
+
+```bash
+npm run build
+npm run deploy
+```
+
+Then in GitHub:
+
+1. Go to `Settings -> Pages`
+2. Set `Source` to `Deploy from a branch`
+3. Set branch to `gh-pages` and folder to `/ (root)`
+4. Save and wait a few minutes
+
+Live URL:
+
+`https://amit-chakdhare09.github.io/Photo_Studio/`
+
+## Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build locally
+- `npm run deploy` - Publish `dist` to `gh-pages`
+- `npm run lint` - Run ESLint
